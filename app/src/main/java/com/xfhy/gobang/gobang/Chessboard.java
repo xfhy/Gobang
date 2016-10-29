@@ -11,6 +11,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 
+import com.xfhy.gobang.gobang.model.ChessType;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,9 +54,17 @@ public class Chessboard extends View {
      */
     private boolean isBlack = true;
     /**
-     * 游戏当前状态   开始(true)    结束(false)
+     * 游戏状态:开始
      */
-    private boolean gameState = true;
+    private final static int START = 1;
+    /**
+     * 游戏状态:结束
+     */
+    private final static int END = 2;
+    /**
+     * 游戏当前状态
+     */
+    private int gameState = START;
     /**
      * 白棋子数据
      */
@@ -231,6 +241,11 @@ public class Chessboard extends View {
      */
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        //判断当前游戏状态
+        if(gameState == END){
+            return false;
+        }
+
         //如果是点击事件
         if(event.getAction() == MotionEvent.ACTION_DOWN){
             int x = (int)event.getX();
@@ -246,60 +261,222 @@ public class Chessboard extends View {
                 return false;
             }
 
-            //如果当前是黑子下棋,则添加到黑棋数据里面
-            if(isBlack){
-                int distance = (int)Math.hypot((currentLocation.getX()- allChessCoord[0][0].getX()),
-                        (currentLocation.getY()- allChessCoord[0][0].getY()));
-                Point tempPointCoord = null;   
-                Point correctPoint = null;
-                for(int i=0; i<=maxY; i++){
-                    for(int j=0; j<=maxX; j++){
-                        tempPointCoord = new Point(allChessCoord[i][j].getX(), allChessCoord[i][j].getY());
-                        int distance2 = (int)Math.hypot((currentLocation.getX()-tempPointCoord.getX()),
-                                (currentLocation.getY()-tempPointCoord.getY()));
-                        if(distance2 <= distance){
-                            distance = distance2;
-                            correctPoint = tempPointCoord;
-                        }
+            /*------------------获取当前用户点击位置与哪个棋子位置最近----------------------------*/
+            int distance = (int)Math.hypot((currentLocation.getX()- allChessCoord[0][0].getX()),
+                    (currentLocation.getY()- allChessCoord[0][0].getY()));
+            Point tempPointCoord = null;
+            Point correctPoint = null;   //正确的点
+            int row = 0,col = 0;   //需要添加的那个棋子在二维数组中的行列值
+            for(int i=0; i<=maxY; i++){
+                for(int j=0; j<=maxX; j++){
+                    tempPointCoord = new Point(allChessCoord[i][j].getX(),
+                            allChessCoord[i][j].getY());
+                    int distance2 = (int)Math.hypot((currentLocation.getX()-
+                                    tempPointCoord.getX()),
+                            (currentLocation.getY()-tempPointCoord.getY()));
+                    if(distance2 <= distance){
+                        row = i;
+                        col = j;
+                        distance = distance2;
+                        correctPoint = tempPointCoord;
                     }
                 }
-                //判断之前是否已经下了该位置的棋
-                if(allBlackChessList.contains(correctPoint) || allWhiteChessList.contains(correctPoint)){
-                    return false;
-                }
-                if(correctPoint != null){
-                    allBlackChessList.add(correctPoint);
-                }
-                Log.d("xfhy","添加"+correctPoint.toString());
-            } else {
-                int distance = (int)Math.hypot((currentLocation.getX()- allChessCoord[0][0].getX()),
-                        (currentLocation.getY()- allChessCoord[0][0].getY()));
-                Point tempPointCoord = null;
-                Point correctPoint = null;
-                for(int i=0; i<=maxY; i++){
-                    for(int j=0; j<=maxX; j++){
-                        tempPointCoord = new Point(allChessCoord[i][j].getX(), allChessCoord[i][j].getY());
-                        int distance2 = (int)Math.hypot((currentLocation.getX()-tempPointCoord.getX()),
-                                (currentLocation.getY()-tempPointCoord.getY()));
-                        if(distance2 <= distance){
-                            distance = distance2;
-                            correctPoint = tempPointCoord;
-                        }
-                    }
-                }
-                //判断之前是否已经下了该位置的棋
-                if(allBlackChessList.contains(correctPoint) || allWhiteChessList.contains(correctPoint)){
-                    return false;
-                }
-                if(correctPoint != null){
-                    allWhiteChessList.add(correctPoint);
-                }
-                Log.d("xfhy","添加"+correctPoint.toString());
             }
+            //判断之前是否已经下了该位置的棋
+            if(allBlackChessList.contains(correctPoint) ||
+                    allWhiteChessList.contains(correctPoint)){
+                return false;
+            }
+
+            //没有找到正确的点
+            if(correctPoint == null){
+                return false;
+            }
+
+            //如果当前是黑子下棋,则添加到黑棋数据里面
+            if (isBlack) {
+                allChessCoord[row][col].setChessType(ChessType.BLACK);
+                correctPoint.setChessType(ChessType.BLACK);  //设置棋子类型是黑子
+                allBlackChessList.add(correctPoint);
+            } else {
+                allChessCoord[row][col].setChessType(ChessType.WHITE);
+                //设置棋子类型是白子
+                correctPoint.setChessType(ChessType.WHITE);
+                allWhiteChessList.add(correctPoint);
+            }
+            Log.d("xfhy","添加"+correctPoint.toString());
             invalidate();         //View界面重绘
+            judgeWhoWin(correctPoint,row,col);   //判断输赢
             isBlack = !isBlack;   //下了棋之后,下一个下棋的人不是自己.
         }
         return super.onTouchEvent(event);
+    }
+
+    /**
+     * 判断输赢
+     * @param point   当前下的棋子
+     * @param row     该棋子在所有棋子二维数组中的横坐标   <= maxY
+     * @param col     该棋子在所有棋子二维数组中的纵坐标   <= maxX
+     */
+    private void judgeWhoWin(Point point,int row,int col){
+        int chessCount = 0;  //连着的棋子数量
+        /*------------------------判断横向--------------------------*/
+        //判断棋子右边
+        for(int j=col+1; j <= maxX; j++){
+            //从该棋子的右边一个开始
+            if(allChessCoord[row][j].getChessType() == point.getChessType()){
+                chessCount++;
+            } else {
+                break;
+            }
+        }
+        if(chessCount>3){
+            //胜负已分
+            if(point.getChessType()==ChessType.BLACK){
+                Log.d("xfhy","黑棋胜利!");
+                gameState = END;   //游戏结束
+            } else if(point.getChessType()==ChessType.WHITE){
+                Log.d("xfhy","白棋胜利!");
+                gameState = END;   //游戏结束
+            }
+        }
+
+        //判断左边
+        for(int j=col-1; j >= 0; j--){
+            if(allChessCoord[row][j].getChessType() == point.getChessType()){
+                chessCount++;
+            } else {
+                break;
+            }
+        }
+        if(chessCount>3){
+            //胜负已分
+            if(point.getChessType()==ChessType.BLACK){
+                Log.d("xfhy","黑棋胜利!");
+                gameState = END;   //游戏结束
+            } else if(point.getChessType()==ChessType.WHITE){
+                Log.d("xfhy","白棋胜利!");
+                gameState = END;   //游戏结束
+            }
+        }
+        chessCount = 0;
+        /*------------------------判断竖向--------------------------*/
+        //判断正上方
+        for(int i=row-1; i>=0; i--){
+            if(allChessCoord[i][col].getChessType() == point.getChessType()){
+                chessCount++;
+            } else {
+                break;
+            }
+        }
+        if(chessCount>3){
+            //胜负已分
+            if(point.getChessType()==ChessType.BLACK){
+                Log.d("xfhy","黑棋胜利!");
+                gameState = END;   //游戏结束
+            } else if(point.getChessType()==ChessType.WHITE){
+                Log.d("xfhy","白棋胜利!");
+                gameState = END;   //游戏结束
+            }
+        }
+
+        //判断正下方
+        for(int i=row+1; i <= maxY; i++){
+            if(allChessCoord[i][col].getChessType() == point.getChessType()){
+                chessCount++;
+            } else {
+                break;
+            }
+        }
+        if(chessCount>3){
+            //胜负已分
+            if(point.getChessType()==ChessType.BLACK){
+                Log.d("xfhy","黑棋胜利!");
+                gameState = END;   //游戏结束
+            } else if(point.getChessType()==ChessType.WHITE){
+                Log.d("xfhy","白棋胜利!");
+                gameState = END;   //游戏结束
+            }
+        }
+        chessCount = 0;
+        /*------------------------判断左斜方向--------------------------*/
+        //判断西北方向 row-1,col-1
+        for(int i=row-1,j=col-1; i>=0 && j>=0; i--,j--){
+            if(allChessCoord[i][j].getChessType() == point.getChessType()){
+                chessCount++;
+            } else {
+                break;
+            }
+        }
+        if(chessCount>3){
+            //胜负已分
+            if(point.getChessType()==ChessType.BLACK){
+                Log.d("xfhy","黑棋胜利!");
+                gameState = END;   //游戏结束
+            } else if(point.getChessType()==ChessType.WHITE){
+                Log.d("xfhy","白棋胜利!");
+                gameState = END;   //游戏结束
+            }
+        }
+
+        //判断东南方向
+        for(int i=row+1,j=col+1; i<=maxY && j<=maxX; i++,j++){
+            if(allChessCoord[i][j].getChessType() == point.getChessType()){
+                chessCount++;
+            } else {
+                break;
+            }
+        }
+        if(chessCount>3){
+            //胜负已分
+            if(point.getChessType()==ChessType.BLACK){
+                Log.d("xfhy","黑棋胜利!");
+                gameState = END;   //游戏结束
+            } else if(point.getChessType()==ChessType.WHITE){
+                Log.d("xfhy","白棋胜利!");
+                gameState = END;   //游戏结束
+            }
+        }
+        chessCount = 0;
+        /*------------------------判断右斜方向--------------------------*/
+        //判断东北方向
+        for(int i=row-1,j=col+1; i>=0 && j<=maxX; i--,j++){
+            if(allChessCoord[i][j].getChessType() == point.getChessType()){
+                chessCount++;
+            } else {
+                break;
+            }
+        }
+        if(chessCount>3){
+            //胜负已分
+            if(point.getChessType()==ChessType.BLACK){
+                Log.d("xfhy","黑棋胜利!");
+                gameState = END;   //游戏结束
+            } else if(point.getChessType()==ChessType.WHITE){
+                Log.d("xfhy","白棋胜利!");
+                gameState = END;   //游戏结束
+            }
+        }
+
+        //判断西南方向
+        for(int i=row+1,j=col-1; i<=maxY && j>=0; i++,j--){
+            if(allChessCoord[i][j].getChessType() == point.getChessType()){
+                chessCount++;
+            } else {
+                break;
+            }
+        }
+        if(chessCount>3){
+            //胜负已分
+            if(point.getChessType()==ChessType.BLACK){
+                Log.d("xfhy","黑棋胜利!");
+                gameState = END;   //游戏结束
+            } else if(point.getChessType()==ChessType.WHITE){
+                Log.d("xfhy","白棋胜利!");
+                gameState = END;   //游戏结束
+            }
+        }
+        chessCount = 0;
     }
 
 }

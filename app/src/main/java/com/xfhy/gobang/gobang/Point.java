@@ -1,18 +1,22 @@
 package com.xfhy.gobang.gobang;
 
+import com.xfhy.gobang.gobang.model.ChessType;
+
 /**
  * Created by XFHY on 2016/10/27.
+ * 点类
  */
 
 public class Point {
-    private int x;
-    private int y;
+    private int x;   //横坐标
+    private int y;   //竖坐标
     private final int PRIMEX = 13;
     private final int PRIMEY = 17;
-
+    private ChessType chessType;    //当前坐标点的棋子类型
     public Point(int x, int y) {
         this.x = x;
         this.y = y;
+        chessType = ChessType.NOCHESS;  //默认是没有棋子
     }
 
     public int getX() {
@@ -29,6 +33,14 @@ public class Point {
 
     public void setY(int y) {
         this.y = y;
+    }
+
+    public ChessType getChessType() {
+        return chessType;
+    }
+
+    public void setChessType(ChessType chessType) {
+        this.chessType = chessType;
     }
 
     @Override
@@ -62,4 +74,7 @@ public class Point {
         }
         return true;
     }
+
+
+
 }
