@@ -5,6 +5,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.media.AudioManager;
+import android.media.SoundPool;
+import android.media.ToneGenerator;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -12,6 +15,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.xfhy.gobang.gobang.model.ChessType;
+import com.xfhy.gobang.gobang.util.MyApplication;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,6 +84,14 @@ public class Chessboard extends View {
     private Point[][] allChessCoord;
 
     /**
+     * 声明一个SoundPool,游戏音效
+     */
+    private SoundPool playSound = null;
+
+    //定义一个整型用load()来设置soundID
+    private int playSoundID;
+
+    /**
      * 棋盘的线(类)
      */
     class Line{
@@ -129,6 +141,17 @@ public class Chessboard extends View {
         blackChessBitmap = BitmapFactory.decodeResource(getResources(),R.drawable.black_xfhy);
     }
 
+    /**
+     * 初始化游戏音效
+     */
+    private void initPlaySound(){
+        //第一个参数为同时播放数据流的最大个数，第二数据流类型，第三为声音质量
+        //API 21 中已弃用
+        playSound = new SoundPool(5, AudioManager.STREAM_SYSTEM,5);
+        //把你的声音素材放到res/raw里，第2个参数即为资源文件，第3个为音乐的优先级
+        playSoundID = playSound.load(MyApplication.getContext(),R.raw.chess_sound,1);
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         locationInfo = MainActivity.locationInfo;
@@ -136,6 +159,7 @@ public class Chessboard extends View {
         drawChessboardLines(canvas);
         //画棋子
         drawChesses(canvas);
+        initPlaySound();
     }
 
     /**
@@ -250,7 +274,7 @@ public class Chessboard extends View {
         if(event.getAction() == MotionEvent.ACTION_DOWN){
             int x = (int)event.getX();
             int y = (int)event.getY();
-            locationInfo.setText("当前坐标:("+x+","+y+")");
+            //locationInfo.setText("当前坐标:("+x+","+y+")");
 
             //当前用户点击的位置
             Point currentLocation = new Point(x,y);
@@ -297,11 +321,13 @@ public class Chessboard extends View {
             if (isBlack) {
                 allChessCoord[row][col].setChessType(ChessType.BLACK);
                 correctPoint.setChessType(ChessType.BLACK);  //设置棋子类型是黑子
+                playSound.play(playSoundID,1,1,0,0,1);
                 allBlackChessList.add(correctPoint);
             } else {
                 allChessCoord[row][col].setChessType(ChessType.WHITE);
                 //设置棋子类型是白子
                 correctPoint.setChessType(ChessType.WHITE);
+                playSound.play(playSoundID,1,1,0,0,1);
                 allWhiteChessList.add(correctPoint);
             }
             Log.d("xfhy","添加"+correctPoint.toString());
@@ -330,16 +356,7 @@ public class Chessboard extends View {
                 break;
             }
         }
-        if(chessCount>3){
-            //胜负已分
-            if(point.getChessType()==ChessType.BLACK){
-                Log.d("xfhy","黑棋胜利!");
-                gameState = END;   //游戏结束
-            } else if(point.getChessType()==ChessType.WHITE){
-                Log.d("xfhy","白棋胜利!");
-                gameState = END;   //游戏结束
-            }
-        }
+        showWin(point,chessCount);    //显示当前是谁(黑棋白棋)赢了
 
         //判断左边
         for(int j=col-1; j >= 0; j--){
@@ -349,17 +366,9 @@ public class Chessboard extends View {
                 break;
             }
         }
-        if(chessCount>3){
-            //胜负已分
-            if(point.getChessType()==ChessType.BLACK){
-                Log.d("xfhy","黑棋胜利!");
-                gameState = END;   //游戏结束
-            } else if(point.getChessType()==ChessType.WHITE){
-                Log.d("xfhy","白棋胜利!");
-                gameState = END;   //游戏结束
-            }
-        }
+        showWin(point,chessCount);    //显示当前是谁(黑棋白棋)赢了
         chessCount = 0;
+
         /*------------------------判断竖向--------------------------*/
         //判断正上方
         for(int i=row-1; i>=0; i--){
@@ -369,16 +378,7 @@ public class Chessboard extends View {
                 break;
             }
         }
-        if(chessCount>3){
-            //胜负已分
-            if(point.getChessType()==ChessType.BLACK){
-                Log.d("xfhy","黑棋胜利!");
-                gameState = END;   //游戏结束
-            } else if(point.getChessType()==ChessType.WHITE){
-                Log.d("xfhy","白棋胜利!");
-                gameState = END;   //游戏结束
-            }
-        }
+        showWin(point,chessCount);    //显示当前是谁(黑棋白棋)赢了
 
         //判断正下方
         for(int i=row+1; i <= maxY; i++){
@@ -388,17 +388,9 @@ public class Chessboard extends View {
                 break;
             }
         }
-        if(chessCount>3){
-            //胜负已分
-            if(point.getChessType()==ChessType.BLACK){
-                Log.d("xfhy","黑棋胜利!");
-                gameState = END;   //游戏结束
-            } else if(point.getChessType()==ChessType.WHITE){
-                Log.d("xfhy","白棋胜利!");
-                gameState = END;   //游戏结束
-            }
-        }
+        showWin(point,chessCount);    //显示当前是谁(黑棋白棋)赢了
         chessCount = 0;
+
         /*------------------------判断左斜方向--------------------------*/
         //判断西北方向 row-1,col-1
         for(int i=row-1,j=col-1; i>=0 && j>=0; i--,j--){
@@ -408,16 +400,7 @@ public class Chessboard extends View {
                 break;
             }
         }
-        if(chessCount>3){
-            //胜负已分
-            if(point.getChessType()==ChessType.BLACK){
-                Log.d("xfhy","黑棋胜利!");
-                gameState = END;   //游戏结束
-            } else if(point.getChessType()==ChessType.WHITE){
-                Log.d("xfhy","白棋胜利!");
-                gameState = END;   //游戏结束
-            }
-        }
+        showWin(point,chessCount);    //显示当前是谁(黑棋白棋)赢了
 
         //判断东南方向
         for(int i=row+1,j=col+1; i<=maxY && j<=maxX; i++,j++){
@@ -427,17 +410,9 @@ public class Chessboard extends View {
                 break;
             }
         }
-        if(chessCount>3){
-            //胜负已分
-            if(point.getChessType()==ChessType.BLACK){
-                Log.d("xfhy","黑棋胜利!");
-                gameState = END;   //游戏结束
-            } else if(point.getChessType()==ChessType.WHITE){
-                Log.d("xfhy","白棋胜利!");
-                gameState = END;   //游戏结束
-            }
-        }
+        showWin(point,chessCount);    //显示当前是谁(黑棋白棋)赢了
         chessCount = 0;
+
         /*------------------------判断右斜方向--------------------------*/
         //判断东北方向
         for(int i=row-1,j=col+1; i>=0 && j<=maxX; i--,j++){
@@ -447,16 +422,7 @@ public class Chessboard extends View {
                 break;
             }
         }
-        if(chessCount>3){
-            //胜负已分
-            if(point.getChessType()==ChessType.BLACK){
-                Log.d("xfhy","黑棋胜利!");
-                gameState = END;   //游戏结束
-            } else if(point.getChessType()==ChessType.WHITE){
-                Log.d("xfhy","白棋胜利!");
-                gameState = END;   //游戏结束
-            }
-        }
+        showWin(point,chessCount);    //显示当前是谁(黑棋白棋)赢了
 
         //判断西南方向
         for(int i=row+1,j=col-1; i<=maxY && j>=0; i++,j--){
@@ -466,17 +432,26 @@ public class Chessboard extends View {
                 break;
             }
         }
+        showWin(point,chessCount);    //显示当前是谁(黑棋白棋)赢了
+    }
+
+    /**
+     * 显示当前是谁(黑棋白棋)赢了
+     * @param point  //当判断已经有一方赢了的时候,最后下的那个点
+     */
+    private void showWin(Point point,int chessCount){
         if(chessCount>3){
             //胜负已分
             if(point.getChessType()==ChessType.BLACK){
                 Log.d("xfhy","黑棋胜利!");
+                locationInfo.setText("黑棋胜利!");
                 gameState = END;   //游戏结束
             } else if(point.getChessType()==ChessType.WHITE){
                 Log.d("xfhy","白棋胜利!");
+                locationInfo.setText("白棋胜利!");
                 gameState = END;   //游戏结束
             }
         }
-        chessCount = 0;
     }
 
 }
