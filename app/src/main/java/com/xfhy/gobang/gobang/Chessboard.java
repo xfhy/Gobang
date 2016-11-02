@@ -7,18 +7,21 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.media.AudioManager;
 import android.media.SoundPool;
-import android.media.ToneGenerator;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.xfhy.gobang.gobang.model.ChessType;
 import com.xfhy.gobang.gobang.util.MyApplication;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by XFHY on 2016/10/26.
@@ -83,13 +86,20 @@ public class Chessboard extends View {
      */
     private Point[][] allChessCoord;
 
-    /**
-     * 声明一个SoundPool,游戏音效
-     */
-    private SoundPool playSound = null;
+    //实例化AudioManager对象，控制声音
+    private AudioManager audioManager =null;
+    //最大音量
+    float audioMaxVolumn;
+    //当前音量
+    float audioCurrentVolumn;
+    float volumnRatio;
+    //音效播放池
+    private SoundPool playSound = new SoundPool(2,AudioManager.STREAM_MUSIC,0);
+    //存放音效的HashMap
+    private Map<Integer,Integer> map = new HashMap<Integer,Integer>();
 
-    //定义一个整型用load()来设置soundID
-    private int playSoundID;
+    private Button btn_restart = null;
+    private Button btn_undo = null;
 
     /**
      * 棋盘的线(类)
@@ -145,20 +155,33 @@ public class Chessboard extends View {
      * 初始化游戏音效
      */
     private void initPlaySound(){
-        //第一个参数为同时播放数据流的最大个数，第二数据流类型，第三为声音质量
-        //API 21 中已弃用
-        playSound = new SoundPool(5, AudioManager.STREAM_SYSTEM,5);
-        //把你的声音素材放到res/raw里，第2个参数即为资源文件，第3个为音乐的优先级
-        playSoundID = playSound.load(MyApplication.getContext(),R.raw.chess_sound,1);
+        //实例化AudioManager对象，控制声音
+        audioManager = (AudioManager)MyApplication.getContext().
+                getSystemService(MyApplication.getContext().AUDIO_SERVICE);
+
+//最大音量
+        audioMaxVolumn = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+//当前音量
+        audioCurrentVolumn = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        volumnRatio = audioCurrentVolumn/audioMaxVolumn;
+        map.put(0, playSound.load(MyApplication.getContext(),R.raw.chess_sound,1));
+        map.put(1, playSound.load(MyApplication.getContext(),R.raw.chess_sound,1));
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         locationInfo = MainActivity.locationInfo;
+        btn_restart = MainActivity.btn_restart;
+        btn_undo = MainActivity.btn_undo;
+        btn_restart.setOnClickListener(new OnClickRestartListener());
+        btn_undo.setOnClickListener(new OnClickUndoListener());
         //画棋盘上的线
         drawChessboardLines(canvas);
+
         //画棋子
         drawChesses(canvas);
+
+        //初始化声音
         initPlaySound();
     }
 
@@ -321,13 +344,25 @@ public class Chessboard extends View {
             if (isBlack) {
                 allChessCoord[row][col].setChessType(ChessType.BLACK);
                 correctPoint.setChessType(ChessType.BLACK);  //设置棋子类型是黑子
-                playSound.play(playSoundID,1,1,0,0,1);
+                playSound.play(
+                        map.get(0),//声音资源
+                        volumnRatio,//左声道
+                        volumnRatio,//右声道
+                        1,//优先级
+                        0,//循环次数，0是不循环，-1是一直循环
+                        1);//回放速度，0.5~2.0之间，1为正常速度
                 allBlackChessList.add(correctPoint);
             } else {
                 allChessCoord[row][col].setChessType(ChessType.WHITE);
                 //设置棋子类型是白子
                 correctPoint.setChessType(ChessType.WHITE);
-                playSound.play(playSoundID,1,1,0,0,1);
+                playSound.play(
+                        map.get(0),//声音资源
+                        volumnRatio,//左声道
+                        volumnRatio,//右声道
+                        1,//优先级
+                        0,//循环次数，0是不循环，-1是一直循环
+                        1);//回放速度，0.5~2.0之间，1为正常速度
                 allWhiteChessList.add(correctPoint);
             }
             Log.d("xfhy","添加"+correctPoint.toString());
@@ -451,6 +486,65 @@ public class Chessboard extends View {
                 locationInfo.setText("白棋胜利!");
                 gameState = END;   //游戏结束
             }
+        }
+    }
+
+    //重新开始按钮功能
+    class OnClickRestartListener implements View.OnClickListener{
+        @Override
+        public void onClick(View v) {
+            locationInfo.setText("重新开始");
+            //移除所有棋子
+            allWhiteChessList.clear();
+            allBlackChessList.clear();
+            //设置棋盘上所有棋子为NOCHESS
+            for (int i = 0; i < maxX+1; i++) {
+                for (int j = 0; j < maxX+1; j++) {
+                    allChessCoord[i][j].setChessType(ChessType.NOCHESS);
+                }
+            }
+            gameState = START;  //游戏状态设为START
+            isBlack = true;   //黑棋先开始
+            invalidate();         //View界面重绘
+        }
+    }
+
+    //悔棋按钮功能
+    class OnClickUndoListener implements View.OnClickListener{
+        @Override
+        public void onClick(View v) {
+
+            //首先判断是否棋盘上有棋子
+            if(allWhiteChessList.size() == 0 && allBlackChessList.size() == 0){
+                Toast.makeText(MyApplication.getContext(),"亲,现在棋盘上没有棋子哦",
+                        Toast.LENGTH_SHORT).show();
+                return ;
+            }
+
+            Point tempPoint = null;
+            //如果当前是黑子下棋,则说明上一步是白子下的棋
+            if(isBlack){
+                if(allWhiteChessList.size() > 0 && gameState == START){
+                    tempPoint = allWhiteChessList.remove(allWhiteChessList.size()-1);
+                }
+            } else {
+                if(allBlackChessList.size() > 0 && gameState == START){
+                    tempPoint = allBlackChessList.remove(allBlackChessList.size()-1);
+                }
+            }
+
+            //设置那个棋盘位置为无棋子
+            for (int i = 0; i < maxX+1; i++) {
+                for (int j = 0; j < maxX+1; j++) {
+                    if(allChessCoord[i][j].equals(tempPoint)){
+                        allChessCoord[i][j].setChessType(ChessType.NOCHESS);
+                        break;
+                    }
+                }
+            }
+
+            isBlack = !isBlack;   //下棋人调换
+            invalidate();         //View界面重绘
         }
     }
 

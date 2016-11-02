@@ -26,10 +26,43 @@
             android:id="@+id/location"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_marginLeft="10dp"
+            android:layout_alignParentStart="true"
+            android:layout_marginStart="10dp"
             android:layout_marginTop="10dp"
             android:text="欢迎使用简易五子棋!" />
+
+        <Button
+            android:id="@+id/btn_restart"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/flatbutton"
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_below="@id/location"
+            android:text="重新开始"/>
+
+        <Button
+            android:id="@+id/btn_undo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/flatbutton"
+            android:layout_toEndOf="@id/btn_restart"
+            android:layout_alignTop="@id/btn_restart"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:text="悔棋"/>
+
+        <Button
+            android:id="@+id/btn_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/flatbutton"
+            android:layout_toEndOf="@id/btn_undo"
+            android:layout_alignTop="@id/btn_undo"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:text="返回"/>
 
     </RelativeLayout>
 
