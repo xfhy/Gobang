@@ -101,8 +101,7 @@ public class Chessboard extends View {
     private Map<Integer, Integer> map = new HashMap<Integer, Integer>();
 
     //当前游戏模式    人机或者人人
-    private GamePattern gamePattern = GamePattern.MANANDMACHINE;
-    //private GamePattern gamePattern = GamePattern.MANANDMAN;
+    private static GamePattern gamePattern = GamePattern.MANANDMAN;
 
     /**
      * 重新开始按钮
@@ -146,6 +145,10 @@ public class Chessboard extends View {
         super(context, attrs, defStyleAttr);
         setBackgroundColor(0x44ff0000);//设置背景色
         initPaintAndBitmap();
+    }
+
+    public static void setGamePattern(GamePattern gamePattern) {
+        Chessboard.gamePattern = gamePattern;
     }
 
     /**
@@ -386,6 +389,7 @@ public class Chessboard extends View {
                             1);//回放速度，0.5~2.0之间，1为正常速度
                     allWhiteChessList.add(correctPoint);
                 }
+                invalidate();         //View界面重绘
                 isBlack = !isBlack;   //下了棋之后,下一个下棋的人不是自己.
                 judgeWhoWin(correctPoint, row, col);   //判断输赢
             } else if(gamePattern == GamePattern.MANANDMACHINE){
@@ -406,13 +410,15 @@ public class Chessboard extends View {
 
                 //电脑下棋
                 Point point = getAIChess();    //该点在棋盘中的横纵坐标保存在point中
+                int tempX = point.getX();
+                int tempY = point.getY();
                 allChessCoord[point.getX()][point.getY()].setChessType(ChessType.WHITE);
                 point.setChessType(ChessType.WHITE);
-                judgeWhoWin(point, point.getX(), point.getY());   //判断输赢
                 getCoordinateByRowCol(point,point.getX(),point.getY());
                 allWhiteChessList.add(point);
                 Log.d("xfhy","电脑下棋-------->"+point.toString());
                 invalidate();         //View界面重绘
+                judgeWhoWin(point, tempX, tempY);   //判断输赢
             }
 
             //Log.d("xfhy", "添加" + correctPoint.toString());
@@ -530,12 +536,14 @@ public class Chessboard extends View {
         if (chessCount > 3) {
             //胜负已分
             if (point.getChessType() == ChessType.BLACK) {
-                Log.d("xfhy", "黑棋胜利!");
                 showInfo.setText("黑棋胜利!");
+                Toast.makeText(MyApplication.getContext(),
+                        "黑棋胜利!",Toast.LENGTH_SHORT).show();
                 gameState = END;   //游戏结束
             } else if (point.getChessType() == ChessType.WHITE) {
-                Log.d("xfhy", "白棋胜利!");
                 showInfo.setText("白棋胜利!");
+                Toast.makeText(MyApplication.getContext(),
+                        "白棋胜利!",Toast.LENGTH_SHORT).show();
                 gameState = END;   //游戏结束
             }
         }
@@ -545,11 +553,12 @@ public class Chessboard extends View {
     class OnClickRestartListener implements View.OnClickListener {
         @Override
         public void onClick(View v) {
+            showInfo.setText("欢迎使用简易五子棋!");
             //移除所有棋子
             allWhiteChessList.clear();
             allBlackChessList.clear();
             //设置棋盘上所有棋子为NOCHESS
-            for (int i = 0; i < maxX + 1; i++) {
+            for (int i = 0; i < maxY + 1; i++) {
                 for (int j = 0; j < maxX + 1; j++) {
                     allChessCoord[i][j].setChessType(ChessType.NOCHESS);
                 }
