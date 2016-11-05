@@ -8,5 +8,5 @@ package com.xfhy.gobang.gobang.model;
 public enum ChessType {
     NOCHESS,   //没有棋子
     BLACK,     //黑子
-    WHITE;     //白子
+    WHITE     //白子
 }
